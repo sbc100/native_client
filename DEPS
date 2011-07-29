@@ -9,17 +9,17 @@ vars = {
   # but sometimes chrome_rev_ppapi needs to be more recent to get the
   # latest Pepper changes when LKGR is lagging too far back.
   "chrome_rev": "93797",
-  "chrome_ppapi_rev": "93797",
-  "chromium_trunk": "http://src.chromium.org/svn/trunk",
+  "chrome_ppapi_rev": "HEAD",
+  "chromium_trunk": "http://src.chromium.org/svn/branches/835",
   "googlecode_url": "http://%s.googlecode.com/svn",
   "gtest_rev": "364",
   "gyp_rev": "906",
-  "lcov_rev": "54822",
-  "native_client_trunk": "http://src.chromium.org/native_client/trunk",
+  "lcov_rev": "HEAD",
+  "native_client_trunk": "http://src.chromium.org/native_client/branches/835",
   "o3d_trunk": "http://o3d.googlecode.com/svn/trunk",
-  "python_26_rev": "53573",
-  "tools_rev": "5360",
-  "valgrind_rev": "5674",
+  "python_26_rev": "HEAD",
+  "tools_rev": "6220",
+  "valgrind_rev": "6220",
   "wix_rev": "153",
 }
 
