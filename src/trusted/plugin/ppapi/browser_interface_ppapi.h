@@ -35,21 +35,9 @@ class BrowserInterfacePpapi : public BrowserInterface {
   // Convert an identifier to a string.
   virtual nacl::string IdentifierToString(uintptr_t ident);
 
-  // Pops up an alert box. Returns false if that failed for any reason.
-  virtual bool Alert(InstanceIdentifier instance_id,
-                     const nacl::string& text);
-
-  // Evaluate a JavaScript string in the browser.
-  virtual bool EvalString(InstanceIdentifier instance_id,
-                          const nacl::string& handler_string);
-
   // Write to the JavaScript console.
-  virtual bool AddToConsole(InstanceIdentifier instance_id,
+  virtual void AddToConsole(InstanceIdentifier instance_id,
                             const nacl::string& text);
-
-  // Gets the full URL of the current page.
-  virtual bool GetFullURL(InstanceIdentifier instance_id,
-                          nacl::string* full_url);
 
   // Creates a browser scriptable handle for a given portable handle.
   virtual ScriptableHandle* NewScriptableHandle(PortableHandle* handle);
