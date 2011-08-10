@@ -97,8 +97,7 @@ int32_t BrowserPpp::InitializeModule(
                                          &plugin_pid_,
                                          &pp_error);
   DebugPrintf("PPP_InitializeModule: %s\n", NaClSrpcErrorString(srpc_result));
-  if (srpc_result == NACL_SRPC_RESULT_INTERNAL)  // Nexe died.
-    ShutdownChannel();
+  is_nexe_alive_ = (srpc_result != NACL_SRPC_RESULT_INTERNAL);
   if (srpc_result != NACL_SRPC_RESULT_OK)
     return PP_ERROR_FAILED;
   DebugPrintf("PPP_InitializeModule: pp_error=%"NACL_PRId32"\n", pp_error);
@@ -120,25 +119,23 @@ int32_t BrowserPpp::InitializeModule(
   return PP_OK;
 }
 
-void BrowserPpp::ShutdownChannel() {
-  DebugPrintf("ShutdownChannel: main_channel=%p\n",
-              static_cast<void*>(main_channel_));
-  UnsetBrowserPppForInstance(plugin_->pp_instance());
-  UnsetModuleIdForSrpcChannel(main_channel_);
-  UnsetInstanceIdForSrpcChannel(main_channel_);
-  main_channel_ = NULL;
-}
-
 void BrowserPpp::ShutdownModule() {
   DebugPrintf("PPP_ShutdownModule: main_channel=%p\n",
               static_cast<void*>(main_channel_));
-  if (main_channel_ == NULL)
-    return;
+  if (main_channel_ == NULL) {
+    CHECK(!is_nexe_alive_);
+    return;  // The proxy has already been shut down.
+  }
   NaClSrpcError srpc_result =
       PppRpcClient::PPP_ShutdownModule(main_channel_);
   DebugPrintf("PPP_ShutdownModule: %s\n", NaClSrpcErrorString(srpc_result));
   NaClThreadJoin(&upcall_thread_);
-  ShutdownChannel();
+  UnsetBrowserPppForInstance(plugin_->pp_instance());
+  UnsetModuleIdForSrpcChannel(main_channel_);
+  UnsetInstanceIdForSrpcChannel(main_channel_);
+  main_channel_ = NULL;
+  is_nexe_alive_ = false;
+  DebugPrintf("PPP_ShutdownModule: done\n");
 }
 
 const void* BrowserPpp::GetPluginInterface(const char* interface_name) {
@@ -152,8 +149,7 @@ const void* BrowserPpp::GetPluginInterface(const char* interface_name) {
                                      &exports_interface_name);
   DebugPrintf("PPP_GetInterface('%s'): %s\n",
               interface_name, NaClSrpcErrorString(srpc_result));
-  if (srpc_result == NACL_SRPC_RESULT_INTERNAL)  // Nexe died.
-    ShutdownChannel();
+  is_nexe_alive_ = (srpc_result != NACL_SRPC_RESULT_INTERNAL);
 
   const void* ppp_interface = NULL;
   if (srpc_result != NACL_SRPC_RESULT_OK || !exports_interface_name) {
