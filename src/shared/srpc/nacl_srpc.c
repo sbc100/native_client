@@ -118,6 +118,14 @@ static int BuildInterfaceDesc(NaClSrpcChannel* channel) {
  * The constructors and destructor.
  */
 
+void NaClSrpcChannelInitialize(NaClSrpcChannel* channel) {
+  channel->message_channel = NULL;
+  channel->next_outgoing_request_id = 0;
+  channel->server = NULL;
+  channel->client = NULL;
+  channel->server_instance_data = NULL;
+}
+
 /*
  * Set up the buffering structures for a channel.
  */
@@ -126,6 +134,7 @@ int NaClSrpcClientCtor(NaClSrpcChannel* channel, NaClSrpcImcDescType handle) {
               "NaClSrpcClientCtor(channel=%p, handle=%p)\n",
               (void*) channel,
               (void*) handle);
+  NaClSrpcChannelInitialize(channel);
   channel->message_channel = NaClSrpcMessageChannelNew(handle);
   if (NULL == channel->message_channel) {
     NaClSrpcLog(NACL_SRPC_LOG_ERROR,
@@ -162,6 +171,7 @@ int NaClSrpcServerCtor(NaClSrpcChannel* channel,
               (void*) handle,
               (void*) service,
               (void*) server_instance_data);
+  NaClSrpcChannelInitialize(channel);
   channel->message_channel = NaClSrpcMessageChannelNew(handle);
   if (NULL == channel->message_channel) {
     NaClSrpcLog(NACL_SRPC_LOG_ERROR,
