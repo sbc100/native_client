@@ -97,8 +97,18 @@ static void NaClAddJumpToJumpSets(NaClValidatorState* state,
   else if ((to_address & state->alignment_mask) == 0 &&
            (to_address & ~(NaClPcAddress) 0xffffffff) == 0) {
     /* Allow bundle-aligned jump. */
-  }
-  else {
+  } else if (inst->unchanged) {
+    /* If we are replacing this instruction during dynamic code modification
+     * and it has not changed, the jump target must be valid because the
+     * instruction has been previously validated.  However, we may be only
+     * replacing a subsection of the code segment and therefore may not have
+     * information about instruction boundaries outside of the code being
+     * replaced. Therefore, we allow unaligned direct jumps outside of the code
+     * being validated if and only if the instruction is unchanged.
+     * If dynamic code replacement is not being performed, inst->unchanged
+     * should always be false.
+     */
+  } else {
     NaClValidatorInstMessage(LOG_ERROR, state, inst,
                              "Instruction jumps to bad address\n");
   }

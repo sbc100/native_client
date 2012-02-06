@@ -405,8 +405,8 @@ static INLINE void RememberIP(const NaClPcAddress ip,
   NCSetAdrTable(ioffset, vstate->vttable);
 }
 
-static void RememberTP(const NaClPcAddress src, NaClPcAddress target,
-                       struct NCValidatorState *vstate) {
+static void RememberTP(const NCDecoderInst *dinst, const NaClPcAddress src,
+                       NaClPcAddress target, struct NCValidatorState *vstate) {
   const NaClMemorySize ioffset =  target - vstate->iadrbase;
 
   if (NCAddressInMemoryRange(target, vstate)) {
@@ -414,8 +414,18 @@ static void RememberTP(const NaClPcAddress src, NaClPcAddress target,
   }
   else if ((target & vstate->alignmask) == 0) {
     /* Allow bundle-aligned jumps. */
-  }
-  else {
+  } else if (dinst->unchanged) {
+    /* If we are replacing this instruction during dynamic code modification
+     * and it has not changed, the jump target must be valid because the
+     * instruction has been previously validated.  However, we may be only
+     * replacing a subsection of the code segment and therefore may not have
+     * information about instruction boundries outside of the code being
+     * replaced. Therefore, we allow unaligned direct jumps outside of the code
+     * being validated if and only if the instruction is unchanged.
+     * If dynamic code replacement is not being performed, inst->unchanged
+     * should always be false.
+     */
+  } else {
     ValidatePrintError(src, "JUMP TARGET out of range", vstate);
     NCStatsBadTarget(vstate);
   }
@@ -510,7 +520,7 @@ static void ValidateJmp8(const NCDecoderInst *dinst) {
   NaClPcAddress target =
       dinst->vpc + dinst->inst.bytes.length + offset;
   NCStatsCheckTarget(vstate);
-  RememberTP(dinst->vpc, target, vstate);
+  RememberTP(dinst, dinst->vpc, target, vstate);
 }
 
 static void ValidateJmpz(const NCDecoderInst *dinst) {
@@ -542,7 +552,7 @@ static void ValidateJmpz(const NCDecoderInst *dinst) {
     if (opcode0 == 0xe8) ValidateCallAlignment(dinst);
   }
   target = dinst->vpc + dinst->inst.bytes.length + offset;
-  RememberTP(dinst->vpc, target, vstate);
+  RememberTP(dinst, dinst->vpc, target, vstate);
 }
 
 /*
@@ -895,18 +905,13 @@ static void ValidateIndirect5Replacement(NCDecoderInst *dinst_old,
 static Bool ValidateInstReplacement(NCDecoderStatePair* tthis,
                                     NCDecoderInst *dinst_old,
                                     NCDecoderInst *dinst_new) {
+
+
   /* Only validate individual instructions that have changed. */
-  if (memcmp(dinst_old->inst.bytes.byte,
-             dinst_new->inst.bytes.byte,
-             dinst_new->inst.bytes.length)) {
-    /* Call single instruction validator first, will call ValidateIndirect5() */
-    ValidateInst(dinst_new);
-  } else {
-    /* Still need to record there is an intruction here for NCValidateFinish()
-     * to verify basic block alignment.
-     */
-    RememberIP(dinst_new->vpc, NCVALIDATOR_STATE_DOWNCAST(dinst_new->dstate));
-  }
+  dinst_new->unchanged = memcmp(dinst_old->inst.bytes.byte,
+                                dinst_new->inst.bytes.byte,
+                                dinst_new->inst.bytes.length) == 0;
+  ValidateInst(dinst_new);
 
   if (dinst_old->opinfo->insttype == NACLi_INDIRECT
     || dinst_new->opinfo->insttype == NACLi_INDIRECT) {
