@@ -175,7 +175,7 @@ def ConfigureHostArchFlags(host, extra_cflags, options):
   configure_args = []
   extra_cc_args = []
 
-  configure_args += options.extra_host_configure_args
+  configure_args += options.extra_configure_args
   if options.extra_cc_args is not None:
     extra_cc_args += [options.extra_cc_args]
 
@@ -998,7 +998,7 @@ if __name__ == '__main__':
                       help='Build with a PNaCl toolchain')
   parser.add_argument('--extra-cc-args', default=None,
                       help='Extra arguments to pass to cc/cxx')
-  parser.add_argument('--extra-host-configure-arg',
+  parser.add_argument('--extra-configure-arg', dest='extra_configure_args',
                       default=[], action='append',
                       help='Extra arguments to pass pass to host configure')
   args, leftover_args = parser.parse_known_args()
