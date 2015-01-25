@@ -169,12 +169,13 @@ def GSDJoin(*args):
   return '_'.join([pynacl.gsd_storage.LegalizeName(arg) for arg in args])
 
 
-def ConfigureHostArchFlags(host, extra_cflags, options, gold_ldadd=None):
+def ConfigureHostArchFlags(host, extra_cflags, options):
   """ Return flags passed to LLVM and binutils configure for compilers and
   compile flags. """
   configure_args = []
   extra_cc_args = []
 
+  configure_args += options.extra_host_configure_args
   if options.extra_cc_args is not None:
     extra_cc_args += [options.extra_cc_args]
 
@@ -193,16 +194,7 @@ def ConfigureHostArchFlags(host, extra_cflags, options, gold_ldadd=None):
     # Chrome clang defaults to 64-bit builds, even when run on 32-bit Linux.
     extra_cc_args = ['-m32']
 
-  if host == 'le32-nacl':
-    configure_args.append('ac_cv_func_vfork_works=no')
-
-    # TODO(bradnelson): Figure out why pnacl toolchain needs this.
-    configure_args.append('--disable-compiler-version-checks')
-
   extra_cxx_args = list(extra_cc_args)
-
-  if gold_ldadd:
-    configure_args.append('--with-gold-ldadd=' + ' '.join(gold_ldadd))
 
   if not options.gcc:
     cc, cxx, ar, ranlib = CompilersForHost(host)
@@ -501,30 +493,10 @@ def HostTools(host, options):
 
   werror = []
   extra_gold_deps = []
-  gold_ldadd = []
   if host == 'le32-nacl':
+    # TODO(bradnelson): Fix warnings so this can go away.
     werror = ['--enable-werror=no']
     extra_gold_deps = [H('llvm')]
-    gold_ldadd = [
-      '-Wl,--undefined=LLVMgold_onload',
-      '-L%(' + GSDJoin('abs_llvm', host) +')s/lib',
-      '-Wl,--start-group',
-      '-lLLVMgold', '-lLLVMCodeGen', '-lLTO', '-lLLVMX86Disassembler',
-      '-lLLVMX86AsmParser', '-lLLVMX86CodeGen', '-lLLVMX86Desc',
-      '-lLLVMX86Info', '-lLLVMX86AsmPrinter', '-lLLVMX86Utils',
-      '-lLLVMARMDisassembler', '-lLLVMARMCodeGen', '-lLLVMNaClTransforms',
-      '-lLLVMARMAsmParser', '-lLLVMARMDesc', '-lLLVMARMInfo',
-      '-lLLVMARMAsmPrinter', '-lLLVMMipsDisassembler', '-lLLVMMipsCodeGen',
-      '-lLLVMSelectionDAG', '-lLLVMAsmPrinter', '-lLLVMCodeGen',
-      '-lLLVMMipsAsmParser', '-lLLVMMipsDesc', '-lLLVMMipsInfo',
-      '-lLLVMMipsAsmPrinter', '-lLLVMMCDisassembler', '-lLLVMLTO',
-      '-lLLVMMCParser', '-lLLVMLinker', '-lLLVMipo', '-lLLVMObjCARCOpts',
-      '-lLLVMVectorize', '-lLLVMScalarOpts', '-lLLVMInstCombine',
-      '-lLLVMTransformUtils', '-lLLVMipa', '-lLLVMBitWriter',
-      '-lLLVMBitReader', '-lLLVMAnalysis', '-lLLVMTarget', '-lLLVMMC',
-      '-lLLVMObject', '-lLLVMCore', '-lLLVMSupport',
-      '-Wl,--end-group',
-    ]
 
   # Binutils still has some warnings when building with clang
   if not options.gcc:
@@ -532,8 +504,6 @@ def HostTools(host, options):
                     '-Wno-unused-function', '-Wno-unused-const-variable',
                     '-Wno-unneeded-internal-declaration',
                     '-Wno-unused-private-field', '-Wno-format-security']
-    if host == 'le32-nacl':
-      warning_flags += ['-Wno-invalid-noreturn']
   else:
     warning_flags = ['-Wno-unused-function', '-Wno-unused-value']
 
@@ -546,13 +516,11 @@ def HostTools(host, options):
           'inputs' : { 'macros': os.path.join(NACL_DIR,
               'pnacl', 'support', 'clang_direct', 'nacl-arm-macros.s')},
           'commands': [
-              command.Command([
-              #command.SkipForIncrementalCommand([
+              command.SkipForIncrementalCommand([
                   'sh',
                   '%(binutils_pnacl_src)s/configure'] +
                   ConfigureBinutilsCommon() +
-                  ConfigureHostArchFlags(
-                    host, warning_flags, options, gold_ldadd=gold_ldadd) +
+                  ConfigureHostArchFlags(host, warning_flags, options) +
                   ['--target=arm-nacl',
                   '--program-prefix=le32-nacl-',
                   '--enable-targets=arm-nacl,i686-nacl,x86_64-nacl,' +
@@ -1030,6 +998,9 @@ if __name__ == '__main__':
                       help='Build with a PNaCl toolchain')
   parser.add_argument('--extra-cc-args', default=None,
                       help='Extra arguments to pass to cc/cxx')
+  parser.add_argument('--extra-host-configure-arg',
+                      default=[], action='append',
+                      help='Extra arguments to pass pass to host configure')
   args, leftover_args = parser.parse_known_args()
   if '-h' in leftover_args or '--help' in leftover_args:
     print 'The following arguments are specific to toolchain_build_pnacl.py:'
