@@ -169,13 +169,15 @@ def GSDJoin(*args):
   return '_'.join([pynacl.gsd_storage.LegalizeName(arg) for arg in args])
 
 
-def ConfigureHostArchFlags(host, extra_cflags, options):
+def ConfigureHostArchFlags(host, extra_cflags, options, extra_configure=None):
   """ Return flags passed to LLVM and binutils configure for compilers and
   compile flags. """
   configure_args = []
   extra_cc_args = []
 
   configure_args += options.extra_configure_args
+  if extra_configure is not None:
+    configure_args += extra_configure
   if options.extra_cc_args is not None:
     extra_cc_args += [options.extra_cc_args]
 
@@ -520,7 +522,9 @@ def HostTools(host, options):
                   'sh',
                   '%(binutils_pnacl_src)s/configure'] +
                   ConfigureBinutilsCommon() +
-                  ConfigureHostArchFlags(host, warning_flags, options) +
+                  ConfigureHostArchFlags(
+                    host, warning_flags, options,
+                    options.binutils_pnacl_extra_configure) +
                   ['--target=arm-nacl',
                   '--program-prefix=le32-nacl-',
                   '--enable-targets=arm-nacl,i686-nacl,x86_64-nacl,' +
@@ -1001,6 +1005,10 @@ if __name__ == '__main__':
   parser.add_argument('--extra-configure-arg', dest='extra_configure_args',
                       default=[], action='append',
                       help='Extra arguments to pass pass to host configure')
+  parser.add_argument('--binutils-pnacl-extra-configure',
+                      default=[], action='append',
+                      help='Extra binutils-pnacl arguments '
+                           'to pass pass to host configure')
   args, leftover_args = parser.parse_known_args()
   if '-h' in leftover_args or '--help' in leftover_args:
     print 'The following arguments are specific to toolchain_build_pnacl.py:'
@@ -1044,7 +1052,7 @@ if __name__ == '__main__':
       packages.update(HostTools(host, args))
       if not args.pnacl_in_pnacl:
         packages.update(HostLibs(host, args))
-        packages.update(HostToolsDirectToNacl(host))
+        packages.update(HostToolsDirectToNacl(host, args))
     if not args.pnacl_in_pnacl:
       packages.update(TargetLibCompiler(pynacl.platform.PlatformTriple(), args))
     # Don't build the target libs on Windows because of pathname issues.
