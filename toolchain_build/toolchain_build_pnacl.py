@@ -1044,7 +1044,7 @@ if __name__ == '__main__':
       packages.update(HostTools(host, args))
       if not args.pnacl_in_pnacl:
         packages.update(HostLibs(host, args))
-        packages.update(HostToolsDirectToNacl(host, args))
+        packages.update(HostToolsDirectToNacl(host))
     if not args.pnacl_in_pnacl:
       packages.update(TargetLibCompiler(pynacl.platform.PlatformTriple(), args))
     # Don't build the target libs on Windows because of pathname issues.
