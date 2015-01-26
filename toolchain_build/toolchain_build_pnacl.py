@@ -601,11 +601,11 @@ def HostTools(host, options):
           CreateSymLinksToDirectToNaClTools(host)
       },
   }
-  cleanup_libs = []
+  cleanup_static_libs = []
   shared = []
   if host != 'le32-nacl':
     shared = ['--enable-shared']
-    cleanup_libs = [
+    cleanup_static_libs = [
         command.Remove(*[os.path.join('%(output)s', 'lib', f) for f
                          in '*.a', '*Hello.*', 'BugpointPasses.*']),
     ]
@@ -641,7 +641,7 @@ def HostTools(host, options):
                   'SUBZERO_SRC_ROOT=%(abs_subzero_src)s',
                   'all']),
               command.Command(MAKE_DESTDIR_CMD + ['install'])] +
-              cleanup_libs + [
+              cleanup_static_libs + [
               command.Remove(*[os.path.join('%(output)s', 'bin', f) for f in
                                Exe('clang-format'), Exe('clang-check'),
                                Exe('c-index-test'), Exe('clang-tblgen'),
