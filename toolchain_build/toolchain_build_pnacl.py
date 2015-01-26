@@ -194,7 +194,7 @@ def ConfigureHostArchFlags(host, extra_cflags, options, extra_configure=None):
       configure_args.append('--host=' + host)
   if TripleIsLinux(host) and not TripleIsX8664(host):
     # Chrome clang defaults to 64-bit builds, even when run on 32-bit Linux.
-    extra_cc_args = ['-m32']
+    extra_cc_args += ['-m32']
 
   extra_cxx_args = list(extra_cc_args)
 
