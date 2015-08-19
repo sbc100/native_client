@@ -1,0 +1,7 @@
+Code-Review+2: Nodir Turakulov <nodir@chromium.org>
+Verified+1: Sergiy Byelozyorov <sergiyb@chromium.org>
+Submitted-by: Sergiy Byelozyorov <sergiyb@chromium.org>
+Submitted-at: Wed, 19 Aug 2015 16:47:38 +0000
+Reviewed-on: https://chromium-review.googlesource.com/293682
+Project: native_client/src/native_client
+Branch: refs/heads/infra/config
