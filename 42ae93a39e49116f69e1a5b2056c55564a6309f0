@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "241f15c8_95705e75",
+        "filename": "tests/toolchain/nacl.scons",
+        "patchSetId": 4
+      },
+      "lineNbr": 220,
+      "author": {
+        "id": 1002356
+      },
+      "writtenOn": "2017-03-09T13:47:04Z",
+      "side": 1,
+      "message": "Were you supposed to upload build_id_check_text file too?",
+      "revId": "42ae93a39e49116f69e1a5b2056c55564a6309f0",
+      "serverId": "3ce6091f-6c88-37e8-8c75-72f92ae8dfba",
+      "unresolved": true
+    }
+  ]
+}
