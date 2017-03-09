@@ -16,6 +16,24 @@
       "revId": "42ae93a39e49116f69e1a5b2056c55564a6309f0",
       "serverId": "3ce6091f-6c88-37e8-8c75-72f92ae8dfba",
       "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "74eb81b5_6684922a",
+        "filename": "tests/toolchain/nacl.scons",
+        "patchSetId": 4
+      },
+      "lineNbr": 220,
+      "author": {
+        "id": 1001135
+      },
+      "writtenOn": "2017-03-09T17:07:03Z",
+      "side": 1,
+      "message": "Oops, you are right. Will fix.",
+      "parentUuid": "241f15c8_95705e75",
+      "revId": "42ae93a39e49116f69e1a5b2056c55564a6309f0",
+      "serverId": "3ce6091f-6c88-37e8-8c75-72f92ae8dfba",
+      "unresolved": true
     }
   ]
 }
