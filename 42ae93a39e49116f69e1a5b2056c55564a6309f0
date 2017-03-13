@@ -37,6 +37,24 @@
     },
     {
       "key": {
+        "uuid": "508cdea2_a97369bb",
+        "filename": "tests/toolchain/nacl.scons",
+        "patchSetId": 4
+      },
+      "lineNbr": 214,
+      "author": {
+        "id": 1002356
+      },
+      "writtenOn": "2017-03-13T19:44:26Z",
+      "side": 1,
+      "message": "Try running the test with bitcode\u003d1 pnacl_generate_pexe\u003d0. All architectures will be affected.",
+      "parentUuid": "10f44593_b5ed60fd",
+      "revId": "42ae93a39e49116f69e1a5b2056c55564a6309f0",
+      "serverId": "3ce6091f-6c88-37e8-8c75-72f92ae8dfba",
+      "unresolved": true
+    },
+    {
+      "key": {
         "uuid": "241f15c8_95705e75",
         "filename": "tests/toolchain/nacl.scons",
         "patchSetId": 4
