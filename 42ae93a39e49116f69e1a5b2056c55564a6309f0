@@ -19,6 +19,24 @@
     },
     {
       "key": {
+        "uuid": "10f44593_b5ed60fd",
+        "filename": "tests/toolchain/nacl.scons",
+        "patchSetId": 4
+      },
+      "lineNbr": 214,
+      "author": {
+        "id": 1001135
+      },
+      "writtenOn": "2017-03-13T18:58:45Z",
+      "side": 1,
+      "message": "I believe that \nnot env.Bit(\u0027pnacl_generate_pexe\u0027) \nshould filter out cases where we would need the extra flag. Are you seeing this in some particular configuration? I don\u0027t think I\u0027ve seen it yet here.",
+      "parentUuid": "aa4e253d_2b0c9577",
+      "revId": "42ae93a39e49116f69e1a5b2056c55564a6309f0",
+      "serverId": "3ce6091f-6c88-37e8-8c75-72f92ae8dfba",
+      "unresolved": true
+    },
+    {
+      "key": {
         "uuid": "241f15c8_95705e75",
         "filename": "tests/toolchain/nacl.scons",
         "patchSetId": 4
