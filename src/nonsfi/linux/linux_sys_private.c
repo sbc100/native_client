@@ -49,7 +49,7 @@ static const int kPageSize = 0x1000;
 
 static uintptr_t errno_value_call(uintptr_t result) {
   if (linux_is_error_result(result)) {
-    errno = -result;
+    errno = linux_errno_to_nacl_errno(-result);
     return -1;
   }
   return result;
@@ -134,7 +134,7 @@ long int sysconf(int name) {
 
 static void *mmap_internal(void *start, size_t length, int prot, int flags,
                            int fd, off_t offset) {
-#if defined(__i386__) || defined(__arm__)
+#if defined(__i386__) || defined(__arm__) || defined(__mips__)
   static const int kPageBits = 12;
   if (offset & ((1 << kPageBits) - 1)) {
     /* An unaligned offset is specified. */
@@ -142,6 +142,12 @@ static void *mmap_internal(void *start, size_t length, int prot, int flags,
     return MAP_FAILED;
   }
   offset >>= kPageBits;
+
+  flags = nacl_mapflags_to_linux_mapflags(flags);
+  if(flags == -1) {
+    errno = EINVAL;
+    return MAP_FAILED;
+  }
 
   return (void *) errno_value_call(
       linux_syscall6(__NR_mmap2, (uintptr_t) start, length,
@@ -253,9 +259,9 @@ ssize_t pread(int fd, void *buf, size_t count, off_t offset) {
   return errno_value_call(
       linux_syscall5(__NR_pread64, fd, (uintptr_t) buf, count,
                      offset_low, offset_high));
-#elif defined(__arm__)
+#elif defined(__arm__) || defined(__mips__)
   /*
-   * On ARM, a 64-bit parameter has to be in an even-odd register
+   * On ARM and MIPS, a 64-bit parameter has to be in an even-odd register
    * pair. Hence these calls ignore their fourth argument (r3) so that
    * their fifth and sixth make such a pair (r4,r5).
    */
@@ -274,7 +280,7 @@ ssize_t pwrite(int fd, const void *buf, size_t count, off_t offset) {
   return errno_value_call(
       linux_syscall5(__NR_pwrite64, fd, (uintptr_t) buf, count,
                      offset_low, offset_high));
-#elif defined(__arm__)
+#elif defined(__arm__) || defined(__mips__)
   return errno_value_call(
       linux_syscall6(__NR_pwrite64, fd, (uintptr_t) buf, count,
                      0  /* dummy */, offset_low, offset_high));
@@ -284,7 +290,7 @@ ssize_t pwrite(int fd, const void *buf, size_t count, off_t offset) {
 }
 
 off_t lseek(int fd, off_t offset, int whence) {
-#if defined(__i386__) || defined(__arm__)
+#if defined(__i386__) || defined(__arm__) || defined(__mips__)
   uint32_t offset_low = (uint32_t) offset;
   uint32_t offset_high = offset >> 32;
   off_t result;
@@ -405,9 +411,9 @@ int truncate(const char *path, off_t length) {
   return errno_value_call(
       linux_syscall3(__NR_truncate64, (uintptr_t) path,
                      length_low, length_high));
-#elif defined(__arm__)
+#elif defined(__arm__) || defined(__mips__)
   /*
-   * On ARM, a 64-bit parameter has to be in an even-odd register
+   * On ARM and MIPS, a 64-bit parameter has to be in an even-odd register
    * pair. Hence these calls ignore their second argument (r1) so that
    * their third and fourth make such a pair (r2,r3).
    */
@@ -495,14 +501,19 @@ int fork(void) {
                      0 /* stack */, 0 /* ptid */, 0 /* tls */, 0 /* ctid */));
 }
 
-#if defined(__i386__) || defined(__arm__)
+#if defined(__i386__) || defined(__arm__) || defined(__mips__)
+
 struct linux_termios {
   uint32_t c_iflag;
   uint32_t c_oflag;
   uint32_t c_cflag;
   uint32_t c_lflag;
   int8_t c_line;
+#if defined(__mips__)
+  int8_t c_cc[23];  /* __KERNEL_NCCS */
+#else
   int8_t c_cc[19];
+#endif
 };
 #else
 # error Unsupported architecture
@@ -515,7 +526,38 @@ int isatty(int fd) {
 }
 
 int pipe(int pipefd[2]) {
+#if defined(__i386__) || defined(__arm__)
   return errno_value_call(linux_syscall1(__NR_pipe, (uintptr_t) pipefd));
+#elif defined(__mips__)
+  register uint32_t sysno __asm__("$2") = __NR_pipe;
+  register uint32_t error __asm__("$2");
+
+  if (pipefd == NULL) {
+    errno = EFAULT;
+    return -1;
+  }
+
+  __asm__ __volatile__(".set push\n"
+                       ".set noreorder\n"
+                       "syscall\n"
+                       "bnez $7, 0f\n"
+                       "nop\n"
+                       "sw $2, 0(%2)\n"
+                       "sw $3, 4(%2)\n"
+                       "li $2, 0\n"
+                       "0:\n"
+                       ".set pop\n"
+                       : "=r"(error)
+                       : "r"(sysno),"r"(pipefd)
+                       : "$3", MIPS_SYSCALL_CLOBBERS);
+  if (error) {
+    errno = error; /* mapping not needed */
+    return -1;
+  }
+  return 0;
+#else
+# error Unsupported architecture
+#endif
 }
 
 int poll(struct pollfd *fds, nfds_t nfds, int timeout) {
@@ -564,9 +606,11 @@ int socketpair(int domain, int type, int protocol, int sv[2]) {
   return socketcall(SYS_SOCKETPAIR, args);
 }
 
-#elif defined(__arm__)
-/* On ARM Linux, socketcall is not defined. Instead use each syscall. */
-
+#elif defined(__arm__) || defined(__mips__)
+/*
+ * On ARM Linux, socketcall is not defined. Instead use each syscall.
+ * On MIPS Linux we chose separate syscall over single socketcall
+ */
 ssize_t recvmsg(int sockfd, struct msghdr *msg, int flags) {
   return errno_value_call(
       linux_syscall3(__NR_recvmsg, sockfd, (uintptr_t) msg, flags));
@@ -596,9 +640,18 @@ pid_t waitpid(pid_t pid, int *status, int options) {
                      0  /* rusage */));
 }
 
+
 int getrlimit(int resource, struct rlimit *rlim) {
+ #if defined(__i386__) || defined(__arm__)
   return errno_value_call(
       linux_syscall2(__NR_ugetrlimit, resource, (uintptr_t) rlim));
+
+ #elif defined(__mips__)
+  return errno_value_call(
+      linux_syscall2(__NR_getrlimit, resource, (uintptr_t) rlim));
+ #else
+ # error Unsupported architecture
+ #endif
 }
 
 int setrlimit(int resource, const struct rlimit *rlim) {
@@ -721,6 +774,10 @@ int nacl_tls_init(void *thread_ptr) {
   uint32_t result = linux_syscall1(__NR_ARM_set_tls, (uint32_t) thread_ptr);
   if (result != 0)
     __builtin_trap();
+#elif defined(__mips__)
+  uint32_t result = linux_syscall1(__NR_set_thread_area, (uint32_t) thread_ptr);
+  if (result != 0)
+    __builtin_trap();
 #else
 # error Unsupported architecture
 #endif
@@ -740,6 +797,8 @@ void *nacl_tls_get(void) {
   __asm__("mov %%gs:0, %0" : "=r"(result));
 #elif defined(__arm__)
   __asm__("mrc p15, 0, %0, c13, c0, 3" : "=r"(result));
+#elif defined(__mips__)
+  __asm__("rdhwr %0, $29" : "=r"(result));
 #endif
   return result;
 }
@@ -860,6 +919,56 @@ int linux_clone_wrapper(uintptr_t fn, uintptr_t arg,
                          "r"(a1), "r"(a2), "r"(a3), "r"(a4), "r"(a5),
                          [exit_sysno] "i"(__NR_exit)
                        : "memory");
+#elif defined(__mips__)
+  register uint32_t sysno __asm__("$2") = __NR_clone;
+  register uint32_t a1 __asm__("$4") = flags;
+  register uint32_t a2 __asm__("$5") = (uint32_t) stack;
+  register uint32_t a3 __asm__("$6") = (uint32_t) ptid;
+  register uint32_t result __asm__("$2");
+  __asm__ __volatile__(".set push\n"
+                       ".set noreorder\n"
+                       "move $7, %5\n"
+                       /* setup stack for 5th argument */
+                       "addiu $29, $29, -32\n"
+                       "sw    %6, 16($29)\n"
+                       "syscall\n"
+                       /*
+                        * If the return value of clone is non-zero or
+                        * value of a4 is non zero, we are in the parent
+                        * thread of clone.
+                        */
+                       "bnez $7, 0f\n"
+                       "nop\n"
+                       "bnez $2, 1f\n"
+                       "nop\n"
+                       /* Load |arg| to a0 register, then call |fn|. */
+                       "lw $25, 4($29)\n"
+                       "jalr $25\n"
+                       "lw $4, 0($29)\n"
+                       /*
+                        * Then, call _exit(2) with the returned value.
+                        * v0 keeps the return value of |fn(arg)|.
+                        */
+                       "move $4,$2\n"
+                       "li $2, %[exit_sysno]\n"
+                       "syscall\n"
+                       /* _exit(2) will never return. */
+                       "break\n"
+                       "0:\n"
+                       /* In case of error ($a3 != 0) result ($v0) holds
+                        * "positive" errno value. We negate it because calling
+                        * code expects negative result on error.
+                        */
+                       "negu $2\n"
+                       "1:\n"
+                       /* Restore stack for parent */
+                       "addiu $29, $29, 32\n"
+                       ".set pop\n"
+                       : "=r"(result)
+                       : "r"(sysno),
+                         "r"(a1), "r"(a2), "r"(a3), "r"((uint32_t) thread_ptr),
+                         "r"((uint32_t) ctid), [exit_sysno] "i"(__NR_exit)
+                       :  MIPS_SYSCALL_CLOBBERS );
 #else
 # error Unsupported architecture
 #endif

@@ -63,6 +63,7 @@ EXTRA_ENV = {
   'BIAS_X8664'  : '-D__amd64__ -D__amd64 -D__x86_64__ -D__x86_64 -D__core2__',
   'BIAS_ARM_NONSFI': '${BIAS_ARM} -D__native_client_nonsfi__',
   'BIAS_X8632_NONSFI': '${BIAS_X8632} -D__native_client_nonsfi__',
+  'BIAS_MIPS32_NONSFI': '${BIAS_MIPS32} -D__native_client_nonsfi__',
   'FRONTEND_TRIPLE' : 'le32-unknown-nacl',
 
   'OPT_LEVEL'   : '',  # Default for most tools is 0, but we need to know
@@ -181,6 +182,9 @@ def SetStdLib(*args):
 
 def IsPortable():
   return env.getone('FRONTEND_TRIPLE').startswith('le32-')
+
+def IsNaclMips32():
+  return env.getone('FRONTEND_TRIPLE').startswith('mipsel-')
 
 stdin_count = 0
 def AddInputFileStdin():
@@ -722,6 +726,9 @@ def SetupChain(chain, input_type, output_type):
     # must be run to work with the PPAPI shim calling convention.
     if IsPortable():
       chain.add(RunOpt, 'expand.po', pass_list=['-expand-byval'])
+    # With mipsel-nacl frontend we allways use -expand-byval and -expand-varargs
+    if IsNaclMips32():
+      chain.add(RunOpt, 'expand.po', pass_list=['-expand-varargs','-expand-byval'])
     chain.add(RunTranslate, 'o', mode='-c')
     cur_type = 'o'
   if cur_type == output_type:
@@ -733,6 +740,9 @@ def SetupChain(chain, input_type, output_type):
     # must be run to work with the PPAPI shim calling convention.
     if IsPortable():
       chain.add(RunOpt, 'expand.po', pass_list=['-expand-byval'])
+    # With mipsel-nacl frontend we allways use -expand-byval and -expand-varargs
+    if IsNaclMips32():
+      chain.add(RunOpt, 'expand.po', pass_list=['-expand-varargs','-expand-byval'])
     chain.add(RunTranslate, 's', mode='-S')
     cur_type = 's'
   if cur_type == output_type:

@@ -20,7 +20,8 @@ enum PnaclTargetArchitecture {
   PnaclTargetArchitectureARM_32,
   PnaclTargetArchitectureARM_32_NonSFI,
   PnaclTargetArchitectureARM_32_Thumb,
-  PnaclTargetArchitectureMips_32
+  PnaclTargetArchitectureMips_32,
+  PnaclTargetArchitectureMips_32_NonSFI
 };
 
 #if defined(NACL_DEFINE_EXTERNAL_NATIVE_SUPPORT_FUNCS)
@@ -37,6 +38,10 @@ NACL_GET_ARCH_FUNC int __nacl_get_arch(void) {
 #elif defined(__arm__)
 NACL_GET_ARCH_FUNC int __nacl_get_arch(void) {
   return PnaclTargetArchitectureARM_32_NonSFI;
+}
+#elif defined(__mips__)
+NACL_GET_ARCH_FUNC int __nacl_get_arch(void) {
+  return PnaclTargetArchitectureMips_32_NonSFI;
 }
 #else
 # error "Unknown architecture for __nacl_get_arch()"

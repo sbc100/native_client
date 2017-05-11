@@ -35,12 +35,15 @@ env.AddLibraryToSdk(libpthread)
 if env.Bit('nonsfi_nacl'):
   # Specifying the target arch is necessary for using inline assembly
   # for calling Linux syscalls in libpthread_private.
-  syscall_env = env.Clone()
+  syscall_env=env.Clone()
+  syscall_env.AddBiasForPNaCl()
   if env.Bit('build_x86_32'):
     syscall_env.Append(CCFLAGS=['--target=i686-unknown-nacl'])
   elif env.Bit('build_arm'):
     syscall_env.Append(CCFLAGS=['--target=armv7-unknown-nacl-gnueabihf',
                                 '-mfloat-abi=hard'])
+  elif env.Bit('build_mips32'):
+    syscall_env.Append(CCFLAGS=['--target=mipsel-unknown-nacl'])
   else:
     raise Exception('Unsupported architecture')
   # Enable the use of inline assembly.

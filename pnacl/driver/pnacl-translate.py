@@ -232,7 +232,8 @@ def SetUpArch():
     triple_map = {
         'nacl':
             {'X8632': 'i686-linux-gnu',
-             'ARM': 'armv7a-linux-gnueabihf'}}
+             'ARM': 'armv7a-linux-gnueabihf',
+             'MIPS32': 'mipsel-linux-gnu'}}
   else:
     triple_map = {
         'nacl':

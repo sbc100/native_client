@@ -118,7 +118,8 @@
 # define NACL_TLS_LAYOUT_FUNC static inline __attribute__((__unused__))
 #endif
 
-#if defined(__pnacl__) && !defined(NACL_DEFINE_EXTERNAL_NATIVE_SUPPORT_FUNCS)
+#if (defined(__pnacl__) || defined(__native_client_nonsfi__)) && \
+    !defined(NACL_DEFINE_EXTERNAL_NATIVE_SUPPORT_FUNCS)
 
 /*
  * Signed offset from $tp to the beginning of TLS data.

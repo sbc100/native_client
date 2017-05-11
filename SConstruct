@@ -666,6 +666,7 @@ nonsfi_test_whitelist = set([
     'run_syscall_test',
     'run_thread_test',
     'run_user_async_signal_test',
+    'run_nonsfi_loader_tls_test',
     ])
 
 
@@ -2733,7 +2734,7 @@ def BiasedBitcodeFlags(env):
   if env.Bit('build_arm'):
     return ['--target=armv7-unknown-nacl-gnueabihf', '-mfloat-abi=hard']
   if env.Bit('build_mips32'):
-    return []
+    return ['--target=mipsel-unknown-nacl'] if env.Bit('nonsfi_nacl') else []
   raise UserError('No known target bits set')
 
 pre_base_env.AddMethod(BiasedBitcodeFlags)
@@ -2892,6 +2893,8 @@ def AllowInlineAssembly(env):
     elif env.Bit('build_arm'):
       env.AppendUnique(CCFLAGS=['--target=armv7a-unknown-nacl-gnueabihf',
                                 '-mfloat-abi=hard'])
+    elif env.Bit('build_mips32') and env.Bit('nonsfi_nacl'):
+      env.AppendUnique(CCFLAGS=['--target=mipsel-unknown-nacl'])
     # Enable the use of inline assembly.
     env.Append(CCFLAGS=['-fgnu-inline-asm'])
   return True

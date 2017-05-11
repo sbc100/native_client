@@ -86,6 +86,7 @@ EXTRA_ENV = {
   'BCLD_OFORMAT_MIPS32'        : 'elf32-tradlittlemips-nacl',
   'BCLD_OFORMAT_ARM_NONSFI'    : 'elf32-littlearm-nacl',
   'BCLD_OFORMAT_X8632_NONSFI'  : 'elf32-i386-nacl',
+  'BCLD_OFORMAT_MIPS32_NONSFI' : 'elf32-tradlittlemips-nacl',
 
   'BCLD_ALLOW_UNRESOLVED'  :
     # The following functions are implemented in the native support library.
@@ -149,6 +150,9 @@ def SetLibTarget(*args):
 
 def IsPortable():
   return env.getone('BCLIB_ARCH') == ''
+
+def IsNaclMips32():
+  return env.getone('BCLIB_ARCH') == 'MIPS32'
 
 LDPatterns = [
   ( '--pnacl-allow-native', "env.set('ALLOW_NATIVE', '1')"),
@@ -316,9 +320,10 @@ def main(argv):
     env.set('RELOCATABLE', '1')
 
   # Overriding the lib target uses native-flavored bitcode libs rather than the
-  # portable bitcode libs. It is currently only tested/supported for
-  # building the IRT.
-  if not IsPortable():
+  # portable bitcode libs. It is currently only used for nonsfi with pnacl.
+  # On MIPS32 we use mipsel-nacl target frontend which follows the same abi as
+  # le32-nacl, so we can reuse same portable libs.
+  if not IsPortable() and not IsNaclMips32():
     env.set('BASE_USR', "${BASE_USR_ARCH}")
     env.set('BASE_LIB', "${BASE_LIB_ARCH}")
 
@@ -398,8 +403,8 @@ def main(argv):
                     len(native_objects) == 0 and
                     not env.getbool('ALLOW_NEXE_BUILD_ID') and
                     IsPortable())
-    still_need_expand_byval = IsPortable() and env.getbool('STATIC')
-    still_need_expand_varargs = (still_need_expand_byval and
+    still_need_expand_byval = IsNaclMips32() or (IsPortable() and env.getbool('STATIC'))
+    still_need_expand_varargs = IsNaclMips32() or (still_need_expand_byval and
                                  len(native_objects) == 0)
 
     # A list of groups of args. Each group should contain a pass to run

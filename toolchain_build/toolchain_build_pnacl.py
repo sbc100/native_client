@@ -129,7 +129,7 @@ BINUTILS_PROGS = ['addr2line', 'ar', 'as', 'c++filt', 'elfedit', 'ld',
                   'readelf', 'size', 'strings', 'strip']
 
 TRANSLATOR_ARCHES = ('x86-32', 'x86-64', 'arm', 'mips32',
-                     'x86-32-nonsfi', 'arm-nonsfi')
+                     'x86-32-nonsfi', 'arm-nonsfi', 'mips32-nonsfi')
 
 SANDBOXED_TRANSLATOR_ARCHES = ('x86-32', 'x86-64', 'arm', 'mips32',
                                'x86-32-nonsfi', 'arm-nonsfi')
