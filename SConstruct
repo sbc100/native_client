@@ -666,6 +666,7 @@ nonsfi_test_whitelist = set([
     'run_syscall_test',
     'run_thread_test',
     'run_user_async_signal_test',
+    'run_nonsfi_loader_tls_test',
     ])
 
 
