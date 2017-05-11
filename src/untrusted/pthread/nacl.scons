@@ -41,6 +41,8 @@ if env.Bit('nonsfi_nacl'):
   elif env.Bit('build_arm'):
     syscall_env.Append(CCFLAGS=['--target=armv7-unknown-nacl-gnueabihf',
                                 '-mfloat-abi=hard'])
+  elif env.Bit('build_mips32'):
+    syscall_env.Append(CCFLAGS=['--target=mipsel-unknown-nacl'])
   else:
     raise Exception('Unsupported architecture')
   # Enable the use of inline assembly.

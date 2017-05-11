@@ -21,6 +21,7 @@ EXTRA_ENV = {
   'MC_FLAGS_ARM_NONSFI': ('-arch=arm -triple=armv7a -mcpu=cortex-a9 '
                           '-mattr=+neon'),
   'MC_FLAGS_X8632_NONSFI': '-arch=x86 -triple=i686',
+  'MC_FLAGS_MIPS32_NONSFI': '-arch=mipsel -triple=mipsel',
 
   'RUN_LLVM_AS'    : '${LLVM_AS} ${input} -o ${output}',
   'RUN_LLVM_MC'    : '${LLVM_MC} ${MC_FLAGS} ${input} -o ${output}',

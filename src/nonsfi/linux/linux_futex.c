@@ -63,15 +63,16 @@ static int nacl_irt_futex_wait_abs(volatile int *addr, int value,
   int result = linux_syscall6(__NR_futex, (uintptr_t) addr, FUTEX_WAIT_PRIVATE,
                               value, (uintptr_t) timeout_ptr, 0, 0);
   if (result < 0)
-    return -result;
+    return linux_errno_to_nacl_errno(-result);
   return 0;
 }
 
 static int nacl_irt_futex_wake(volatile int *addr, int nwake, int *count) {
+
   int result = linux_syscall6(__NR_futex, (uintptr_t) addr, FUTEX_WAKE_PRIVATE,
                               nwake, 0, 0, 0);
   if (result < 0)
-    return -result;
+    return linux_errno_to_nacl_errno(-result);
   *count = result;
   return 0;
 }

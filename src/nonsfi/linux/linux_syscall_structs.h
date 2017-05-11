@@ -73,6 +73,7 @@ struct linux_abi_dirent64 {
   char d_name[256];
 };
 
+/* Note that MIPS Kernel defines different layout with swapped errno and code */
 typedef struct {
   int si_signo;
   int si_errno;
@@ -84,14 +85,30 @@ typedef struct {
  * bits (or on MIPS, 128 bits).
  */
 typedef struct {
+#if defined(__i386__) || defined(__arm__)
   uint32_t sig[2];
+#elif defined(__mips__)
+  uint32_t sig[4];
+#else
+# error Unsupported architecture
+#endif
 } linux_sigset_t;
 
+#if defined(__i386__) || defined(__arm__)
 struct linux_sigaction {
   void (*sa_sigaction)(int, linux_siginfo_t *, void *);
   int32_t sa_flags;
   void (*sa_restorer)(void);
   linux_sigset_t sa_mask;
 };
+#elif defined(__mips__)
+struct linux_sigaction {
+  int32_t  sa_flags;
+  void (*sa_sigaction)(int, linux_siginfo_t *, void *);
+  linux_sigset_t sa_mask;
+};
+#else
+# error Unsupported architecture
+#endif
 
 #endif

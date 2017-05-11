@@ -8,12 +8,12 @@
 #include <errno.h>
 #include <stddef.h>
 
-#if defined(__arm__)  /* nacl_irt_icache is supported only on ARM. */
-
+#if defined(__arm__) || defined(__mips__)
 #include "native_client/src/nonsfi/linux/linux_syscall_wrappers.h"
 #include "native_client/src/public/linux_syscalls/sys/syscall.h"
+#endif
 
-
+#if defined(__arm__)
 int irt_clear_cache(void *addr, size_t size) {
   /*
    * The third argument of cacheflush is just ignored for now and should
@@ -27,5 +27,14 @@ int irt_clear_cache(void *addr, size_t size) {
     return -result;
   return 0;
 }
-
+#elif defined(__mips__)
+int irt_clear_cache(void *addr, size_t size) {
+  int result = linux_syscall3(__NR_cacheflush,
+                              (uint32_t) addr,
+                              (uint32_t) size,
+                              3 /* BCACHE */);
+  if (linux_is_error_result(result))
+    return -result;
+  return 0;
+}
 #endif

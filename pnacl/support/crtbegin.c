@@ -26,7 +26,7 @@
 #include <stdint.h>
 
 #include "native_client/pnacl/support/pnacl_irt.h"
-#include "native_client/pnacl/support/relocate.h"
+#include "native_client/src/include/elf32.h"
 
 
 void _pnacl_wrapper_start(uint32_t *info);
@@ -70,10 +70,68 @@ static void __do_eh_ctor(void) {
   __register_frame_info (__EH_FRAME_BEGIN__, &object);
 }
 
+#if defined(__native_client_nonsfi__)
+#if defined(__mips__)
+/*
+ * MIPS: All function call got through GOT which hasn't been relocated
+ * at this point. So we have to use inline assembley to determite nexe
+ * load address and calculate correct addresses of apply_relocations function
+ * and .dynamic section.
+ */
+static inline void  apply_relocations() {
+  void (*apply_relocations)(const Elf32_Dyn*, uintptr_t);
+  uintptr_t load_bias;
+  const Elf32_Dyn* dyn;
+  __asm__ (".set push\n"
+           ".option pic2\n"
+           ".set noreorder\n"
+           "bal 0f\n" /* $ra(31) = $pc + 8 */
+           "nop\n"
+           "0:\n"
+           ".cpload $31\n" /* Setup $gp(28) regitser */
+           "lw %1, %%got(0b)($28)\n"
+           "addiu %1, %1, %%lo(0b)\n"
+           /* Load address value of .0 label from GOT.
+            * Prior to relocation value contained in GOT represents offset
+            * of .0 label from start of nexe.
+            * We use that and runtime address of .0 label ($31) to calculate
+            * nexe's load address.
+            */
+           "subu %1, $31, %1\n"
+           "lw %0, %%got(apply_relocations)($28)\n"
+           "addu %0, %0, %1\n"
+           "lw %2, %%got(_DYNAMIC)($28)\n"
+           "addu %2, %2, %1\n"
+           ".set pop\n"
+           : "=r" (apply_relocations),
+             "=r" (load_bias),
+             "=r" (dyn)
+           :
+           :"$28","$31");
+  apply_relocations(dyn,load_bias);
+}
+#else
+/*
+ * x86 and ARM: Using "hidden" visibility ensures these symbols aren't
+ * referenced through the GOT, which hasn't been relocated yet.
+ */
+extern const Elf32_Dyn _DYNAMIC[] __attribute__((visibility("hidden")));
+extern char _begin[] __attribute__((visibility("hidden")));
+
+extern void apply_relocations(const Elf32_Dyn*, uintptr_t);
+
+#endif
+#endif
+
+
 /* This defines the entry point for a nexe produced by the PNaCl translator. */
 void __pnacl_start(uint32_t *info) {
 #if defined(__native_client_nonsfi__)
+#if defined(__mips__)
   apply_relocations();
+#else
+  apply_relocations(_DYNAMIC,(uintptr_t)_begin);
+#endif
 #endif
 
   __pnacl_init_irt(info);

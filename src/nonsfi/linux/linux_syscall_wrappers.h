@@ -246,6 +246,162 @@ static inline uint32_t linux_syscall6(int syscall_number,
   return result;
 }
 
+#elif defined(__mips__)
+
+#define MIPS_SYSCALL_CLOBBERS "$1", "$7", "$8", "$9", "$10", \
+                         "$11", "$12", "$13", "$14", "$15",  \
+                         "$24", "$29", "hi", "lo", "memory"  \
+
+static inline uint32_t linux_syscall0(int syscall_number) {
+  register uint32_t sysno __asm__("$2") = syscall_number;
+  register uint32_t result __asm__("$2");
+  __asm__ __volatile__(".set push\n"
+                       ".set noat\n"
+                       ".set noreorder\n"
+                       "syscall\n"
+                       "subu $1, $0, $2\n"
+                       "movn $2, $1, $7\n"
+                       ".set pop\n"
+                       : "=r"(result)
+                       : "r"(sysno)
+                       : MIPS_SYSCALL_CLOBBERS);
+  return result;
+}
+
+static inline uint32_t linux_syscall1(int syscall_number, uint32_t arg1) {
+  register uint32_t sysno __asm__("$2") = syscall_number;
+  register uint32_t a1 __asm__("$4") = arg1;
+  register uint32_t result __asm__("$2");
+  __asm__ __volatile__(".set push\n"
+                       ".set noat\n"
+                       ".set noreorder\n"
+                       "syscall\n"
+                       "subu $1, $0, $2\n"
+                       "movn $2, $1, $7\n"
+                       ".set pop\n"
+                       : "=r"(result)
+                       : "r"(sysno), "r"(a1)
+                       : MIPS_SYSCALL_CLOBBERS);
+  return result;
+}
+
+static inline uint32_t linux_syscall2(int syscall_number,
+                                      uint32_t arg1, uint32_t arg2) {
+  register uint32_t sysno __asm__("$2") = syscall_number;
+  register uint32_t a1 __asm__("$4") = arg1;
+  register uint32_t a2 __asm__("$5") = arg2;
+  register uint32_t result __asm__("$2");
+  __asm__ __volatile__(".set push\n"
+                       ".set noat\n"
+                       ".set noreorder\n"
+                       "syscall\n"
+                       "subu $1, $0, $2\n"
+                       "movn $2, $1, $7\n"
+                       ".set pop\n"
+                       : "=r"(result)
+                       : "r"(sysno), "r"(a1), "r"(a2)
+                       : MIPS_SYSCALL_CLOBBERS);
+  return result;
+}
+
+static inline uint32_t linux_syscall3(int syscall_number,
+                                      uint32_t arg1, uint32_t arg2,
+                                      uint32_t arg3) {
+  register uint32_t sysno __asm__("$2") = syscall_number;
+  register uint32_t a1 __asm__("$4") = arg1;
+  register uint32_t a2 __asm__("$5") = arg2;
+  register uint32_t a3 __asm__("$6") = arg3;
+  register uint32_t result __asm__("$2");
+  __asm__ __volatile__(".set push\n"
+                       ".set noat\n"
+                       ".set noreorder\n"
+                       "syscall\n"
+                       "subu $1, $0, $2\n"
+                       "movn $2, $1, $7\n"
+                       ".set pop\n"
+                       : "=r"(result)
+                       : "r"(sysno), "r"(a1), "r"(a2), "r"(a3)
+                       : MIPS_SYSCALL_CLOBBERS);
+  return result;
+}
+
+static inline uint32_t linux_syscall4(int syscall_number,
+                                      uint32_t arg1, uint32_t arg2,
+                                      uint32_t arg3, uint32_t arg4) {
+  register uint32_t sysno __asm__("$2") = syscall_number;
+  register uint32_t a1 __asm__("$4") = arg1;
+  register uint32_t a2 __asm__("$5") = arg2;
+  register uint32_t a3 __asm__("$6") = arg3;
+  register uint32_t result __asm__("$2");
+  __asm__ __volatile__(".set push\n"
+                       ".set noat\n"
+                       ".set noreorder\n"
+                       "move $7, %5\n"
+                       "syscall\n"
+                       "subu $1, $0, $2\n"
+                       "movn $2, $1, $7\n"
+                       ".set pop\n"
+                       : "=r"(result)
+                       : "r"(sysno), "r"(a1), "r"(a2), "r"(a3), "r"(arg4)
+                       : MIPS_SYSCALL_CLOBBERS);
+  return result;
+}
+
+static inline uint32_t linux_syscall5(int syscall_number,
+                                      uint32_t arg1, uint32_t arg2,
+                                      uint32_t arg3, uint32_t arg4,
+                                      uint32_t arg5) {
+  register uint32_t sysno __asm__("$2") = syscall_number;
+  register uint32_t a1 __asm__("$4") = arg1;
+  register uint32_t a2 __asm__("$5") = arg2;
+  register uint32_t a3 __asm__("$6") = arg3;
+  register uint32_t result __asm__("$2");
+  __asm__ __volatile__(".set push\n"
+                       ".set noat\n"
+                       ".set noreorder\n"
+                       "move $7, %5\n"
+                       "addiu $29, $29, -32\n"
+                       "sw    %6 , 16($29)\n"
+                       "syscall\n"
+                       "subu $1, $0, $2\n"
+                       "movn $2, $1, $7\n"
+                       "addiu $29, $29, 32\n"
+                       ".set pop\n"
+                       : "=r"(result)
+                       : "r"(sysno), "r"(a1), "r"(a2), "r"(a3), "r"(arg4),
+                         "r"(arg5)
+                       : MIPS_SYSCALL_CLOBBERS);
+  return result;
+}
+
+static inline uint32_t linux_syscall6(int syscall_number,
+                                      uint32_t arg1, uint32_t arg2,
+                                      uint32_t arg3, uint32_t arg4,
+                                      uint32_t arg5, uint32_t arg6) {
+  register uint32_t sysno __asm__("$2") = syscall_number;
+  register uint32_t a1 __asm__("$4") = arg1;
+  register uint32_t a2 __asm__("$5") = arg2;
+  register uint32_t a3 __asm__("$6") = arg3;
+  register uint32_t result __asm__("$2");
+  __asm__ __volatile__(".set push\n"
+                       ".set noat\n"
+                       ".set noreorder\n"
+                       "move $7, %5\n"
+                       "addiu $29, $29, -32\n"
+                       "sw    %6, 16($29)\n"
+                       "sw    %7, 20($29)\n"
+                       "syscall\n"
+                       "subu $1, $0, $2\n"
+                       "movn $2, $1, $7\n"
+                       "addiu $29, $29, 32\n"
+                       ".set pop\n"
+                       : "=r"(result)
+                       : "r"(sysno), "r"(a1), "r"(a2), "r"(a3), "r"(arg4),
+                         "r"(arg5),"r"(arg6)
+                       : MIPS_SYSCALL_CLOBBERS);
+  return result;
+}
+
 #else
 # error Unsupported architecture
 #endif
