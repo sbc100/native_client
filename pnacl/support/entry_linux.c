@@ -8,7 +8,31 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#if defined(__mips__)
+/* See comment for apply_reloactions in crtbegin.c */
+static inline void __pnacl_start(uint32_t *info) {
+  void (*pnacl_start)(uint32_t*);
+  __asm__ (".set push\n"
+           ".option pic2\n"
+           ".set noreorder\n"
+           "bal 0f\n"
+           "nop\n"
+           "0:"
+           ".cpload $31\n"
+           "lw %0, %%got(0b)($28)\n"
+           "addiu %0, %0, %%lo(0b)\n"
+           "subu %0, $31, %0\n"
+           "lw $31, %%got(__pnacl_start)($28)\n"
+           "addu %0, %0, $31\n"
+           ".set pop\n"
+           : "=r" (pnacl_start)
+           :
+           :"$28","$31");
+  pnacl_start(info);
+}
+#else
 void __pnacl_start(uint32_t *info);
+#endif
 
 static int count_envs(char **envp) {
   int count = 0;

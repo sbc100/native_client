@@ -22,6 +22,7 @@
 #include "native_client/src/public/nonsfi/irt_signal_handling.h"
 #include "native_client/src/untrusted/irt/irt.h"
 
+/* Note that MIPS kernel defines different layout with swapped flags and size */
 typedef struct compat_sigaltstack {
   uint32_t ss_sp;
   int32_t ss_flags;
@@ -87,6 +88,32 @@ struct sigcontext_arm {
 
 typedef struct sigcontext_arm linux_mcontext_t;
 
+#elif defined(__mips__)
+
+/* From linux/arch/mips/include/uapi/asm/sigcontext.h */
+struct sigcontext_mips {
+   uint32_t sc_regmask;     /* Unused */
+   uint32_t sc_status;      /* Unused */
+   uint64_t sc_pc;
+   uint64_t sc_regs[32];
+   uint64_t sc_fpregs[32];
+   uint32_t sc_acx;         /* Was sc_ownedfp */
+   uint32_t sc_fpc_csr;
+   uint32_t sc_fpc_eir;     /* Unused */
+   uint32_t sc_used_math;
+   uint32_t sc_dsp;         /* dsp status, was sc_ssflags */
+   uint64_t sc_mdhi;
+   uint64_t sc_mdlo;
+   uint32_t sc_hi1;         /* Was sc_cause */
+   uint32_t sc_lo1;         /* Was sc_badvaddr */
+   uint32_t sc_hi2;         /* Was sc_sigset[4] */
+   uint32_t sc_lo2;
+   uint32_t sc_hi3;
+   uint32_t sc_lo3;
+};
+
+typedef struct sigcontext_mips linux_mcontext_t;
+
 #else
 #error "unsupported architecture"
 #endif
@@ -106,7 +133,9 @@ struct linux_ucontext_t {
  * NonSFI NaCl does not use NACL_THREAD_SUSPEND_SIGNAL (==SIGUSR1),
  */
 static const int kSignals[] = {
+#if !defined(__mips__)
   LINUX_SIGSTKFLT,
+#endif
   LINUX_SIGINT, LINUX_SIGQUIT, LINUX_SIGILL, LINUX_SIGTRAP, LINUX_SIGBUS,
   LINUX_SIGFPE, LINUX_SIGSEGV,
   /* Handle SIGABRT in case someone sends it asynchronously using kill(). */
@@ -119,6 +148,11 @@ static NaClExceptionHandler g_exception_handler_function_pointer = NULL;
 static int g_signal_handler_initialized = 0;
 static int g_tgid = 0;
 static int g_main_tid;
+
+#if defined(__mips__)
+extern char g_restore_gp2_pc_start[] __attribute__((weak));
+extern char g_restore_gp2_pc_end[] __attribute__((weak));
+#endif
 
 struct NonSfiExceptionFrame {
   struct NaClExceptionContext context;
@@ -160,6 +194,42 @@ static void machine_context_to_register(const linux_mcontext_t *mctx,
   dest->lr = mctx->arm_lr;
   dest->prog_ctr = mctx->arm_pc;
   dest->cpsr = mctx->arm_cpsr;
+#elif defined(__mips__)
+#define COPY_REG(A,I) dest->A = (uint32_t)mctx->sc_regs[I]
+  COPY_REG(zero,0);
+  COPY_REG(at,1);
+  COPY_REG(v0,2);
+  COPY_REG(v1,3);
+  COPY_REG(a0,4);
+  COPY_REG(a1,5);
+  COPY_REG(a2,6);
+  COPY_REG(a3,7);
+  COPY_REG(t0,8);
+  COPY_REG(t1,9);
+  COPY_REG(t2,10);
+  COPY_REG(t3,11);
+  COPY_REG(t4,12);
+  COPY_REG(t5,13);
+  COPY_REG(t6,14);
+  COPY_REG(t7,15);
+  COPY_REG(s0,16);
+  COPY_REG(s1,17);
+  COPY_REG(s2,18);
+  COPY_REG(s3,19);
+  COPY_REG(s4,20);
+  COPY_REG(s5,21);
+  COPY_REG(s6,22);
+  COPY_REG(s7,23);
+  COPY_REG(t8,24);
+  COPY_REG(t9,25);
+  COPY_REG(k0,26);
+  COPY_REG(k1,27);
+  COPY_REG(global_ptr,28);
+  COPY_REG(stack_ptr,29);
+  COPY_REG(frame_ptr,30);
+  COPY_REG(return_addr,31);
+#undef COPY_REG
+  dest->prog_ctr=(uint32_t)mctx->sc_pc;
 #else
 # error Unsupported architecture
 #endif
@@ -189,6 +259,9 @@ static void nonsfi_exception_frame_from_signal_context(
   frame->context.arch = EM_ARM;
   /* R11 is frame pointer in ARM mode, R8 is frame pointer in thumb mode. */
   frame->portable.frame_ptr = frame->context.regs.r11;
+#elif defined(__mips__)
+  frame->context.arch = EM_MIPS;
+  frame->portable.frame_ptr = frame->context.regs.frame_ptr;
 #else
 # error Unsupported architecture
 #endif
@@ -327,6 +400,172 @@ nonsfi_restore_context(const linux_mcontext_t *mctx) {
   );
 
 #undef OFFSET
+#elif defined(__mips__)
+
+#define SCOFFSET(name) \
+  [name]"i"(offsetof(linux_mcontext_t, sc_##name))
+
+#define REGSIZE(regs) sizeof(ctx->sc_##regs[0])
+
+#define GPOFFSET(n) \
+  [gp##n]"i"(offsetof(linux_mcontext_t, sc_regs) + (n * REGSIZE(regs)))
+
+#define GPRESTORE(n) \
+  "lw $"#n", %[regs]+"#n"*%[reg_size](%0)\n"
+
+#define FPRESTORE(n) \
+  "lwc1 $f"#n", %[fpregs]+"#n"*%[fpreg_size](%0)\n"
+
+#define GP2STASH (-28)
+
+#define PCSTASH  (-32)
+
+#define READ_FROM_STASH(name,off) \
+   ctx->name = *((uint32_t*)((char*)(ctx->sc_regs[29]) + off))
+
+  register linux_mcontext_t* ctx __asm__("$4") = (linux_mcontext_t *) mctx;
+
+  /*
+   * Checks if we interrupted another signal handler at point when all
+   * registers except $2 and $pc have been restored and  $2's and $pc's
+   * original values are stashed above user stack.
+   * If true we copy $2's and $pc's original values to context so we can
+   * finish the restoration.
+   */
+  if((uint32_t)mctx->sc_pc >= (uint32_t)g_restore_gp2_pc_start &&
+     (uint32_t)mctx->sc_pc <= (uint32_t)g_restore_gp2_pc_end) {
+    READ_FROM_STASH(sc_regs[2],GP2STASH);
+    READ_FROM_STASH(sc_pc,PCSTASH);
+  }
+  __asm__ __volatile__(
+    ".set push\n"
+    ".set noreorder\n"
+    ".set noat\n"
+    /* Restore floating point registers */
+    FPRESTORE(0)
+    FPRESTORE(1)
+    FPRESTORE(2)
+    FPRESTORE(3)
+    FPRESTORE(4)
+    FPRESTORE(5)
+    FPRESTORE(6)
+    FPRESTORE(7)
+    FPRESTORE(8)
+    FPRESTORE(9)
+    FPRESTORE(10)
+    FPRESTORE(11)
+    FPRESTORE(12)
+    FPRESTORE(13)
+    FPRESTORE(14)
+    FPRESTORE(15)
+    FPRESTORE(16)
+    FPRESTORE(17)
+    FPRESTORE(18)
+    FPRESTORE(19)
+    FPRESTORE(20)
+    FPRESTORE(21)
+    FPRESTORE(22)
+    FPRESTORE(23)
+    FPRESTORE(24)
+    FPRESTORE(25)
+    FPRESTORE(26)
+    FPRESTORE(27)
+    FPRESTORE(28)
+    FPRESTORE(29)
+    FPRESTORE(30)
+    FPRESTORE(31)
+    /*
+     * Restore all user mode general-purpose registers except
+     * $2, $3, $4 , $29 . $0 doesn't need restoring
+     */
+    GPRESTORE(1)
+    GPRESTORE(5)
+    GPRESTORE(6)
+    GPRESTORE(7)
+    GPRESTORE(8)
+    GPRESTORE(9)
+    GPRESTORE(10)
+    GPRESTORE(11)
+    GPRESTORE(12)
+    GPRESTORE(13)
+    GPRESTORE(14)
+    GPRESTORE(15)
+    GPRESTORE(16)
+    GPRESTORE(17)
+    GPRESTORE(18)
+    GPRESTORE(19)
+    GPRESTORE(20)
+    GPRESTORE(21)
+    GPRESTORE(22)
+    GPRESTORE(23)
+    GPRESTORE(24)
+    GPRESTORE(25)
+    GPRESTORE(28)
+    GPRESTORE(30)
+    GPRESTORE(31)
+    /*
+     * Restore mdhi and mdlo.
+     * We stash gp2 and pc "registers" values on original stack while using $2
+     * as temporary sp and $3 as scratch registers.
+     * Next we restore $3, $4 and in the end $29($sp)
+     * After end of this block original stack has been restored and stashed
+     * values of gp2  and pc are located at positions $sp-32 and $sp-28
+     * above sp respectively.
+     * Signal handling frame starts above sp at $sp-32 so thease values won't be
+     * clobbered if we get interrupted after this point.
+     * Note that memory at top of stack from $sp to $sp-24 might be in use by
+     * FPU emulator, so we avoid using that memory range.
+     */
+    "lw $2, %[mdhi](%0)\n"
+    "lw $3, %[mdlo](%0)\n"
+    "mfhi $2\n"
+    "lw $2, %[gp29](%0)\n"
+    "mflo $3\n"
+    "lw $3, %[gp2](%0)\n"
+    "sw $3, %[gp2stash]($2)\n"
+    "lw $3, %[pc](%0)\n"
+    "sw $3, %[pcstash]($2)\n"
+    "lw $3, %[gp3](%0)\n"
+    "lw %0, %[gp4](%0)\n"
+    "move $29, $2\n"
+    ".global g_restore_gp2_pc_start\n"
+    "g_restore_gp2_pc_start:\n"
+    /*
+     * We load original $pc's value from stashed location to $2 and perform
+     * indirect jump while restoring original $2's value in delay slot.
+     * If we get interrupted by another signal in the middle of this the
+     * check  at restorer's start ensures that nested signal restorer will
+     * finish our job.
+     */
+    "lw $2, %[pcstash]($29)\n"
+    "jr $2\n"
+    "lw $2, %[gp2stash]($29)\n"
+    ".global g_restore_gp2_pc_end\n"
+    "g_restore_gp2_pc_end:\n"
+    ".set pop\n"
+    :
+    :"r"(ctx),
+     SCOFFSET(regs),
+     SCOFFSET(fpregs),
+     SCOFFSET(pc),
+     SCOFFSET(mdhi),
+     SCOFFSET(mdlo),
+     GPOFFSET(2),
+     GPOFFSET(3),
+     GPOFFSET(4),
+     GPOFFSET(29),
+     [reg_size]"i"(REGSIZE(regs)),
+     [fpreg_size]"i"(REGSIZE(fpregs)),
+     [gp2stash]"i"(GP2STASH),
+     [pcstash]"i"(PCSTASH)
+  );
+
+#undef SCOFFSET
+#undef GPOFFSET
+#undef REGSIZE
+#undef FPRESTORE
+#undef GPRESTORE
+#undef READ_FROM_STASH
 
 #else
 # error Unsupported architecture

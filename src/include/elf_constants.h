@@ -133,6 +133,12 @@ EXTERN_C_BEGIN
 #define DT_NULL         0
 #define DT_REL          17
 #define DT_RELSZ        18
+#define DT_SYMTAB       6
+#define DT_PLTGOT       3
+
+#if NACL_ARCH(NACL_BUILD_ARCH) == NACL_mips
+#define DT_MIPS_LOCAL_GOTNO     0x7000000a
+#endif
 
 #define ELF_NOTE_GNU    "GNU"
 
@@ -143,6 +149,8 @@ EXTERN_C_BEGIN
 #define R_386_RELATIVE  8
 #define R_ARM_GLOB_DAT  21
 #define R_ARM_RELATIVE  23
+#define R_MIPS_REL32    3
+#define R_MIPS_NONE     0
 
 EXTERN_C_END
 

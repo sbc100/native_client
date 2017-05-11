@@ -15,11 +15,20 @@ extern "C" {
 #endif
 
 #define AF_UNIX 1
+#if defined(__mips__)
+#define SOCK_STREAM 2
+#define SOCK_DGRAM 1
+#else
 #define SOCK_STREAM 1
 #define SOCK_DGRAM 2
+#endif
 #define SOCK_SEQPACKET 5
 
+#if defined(__mips__)
+#define SOL_SOCKET 0xffff
+#else
 #define SOL_SOCKET 1
+#endif
 
 #define SHUT_RD 0
 #define SHUT_WR 1

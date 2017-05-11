@@ -61,6 +61,12 @@ static int nacl_irt_thread_create(void (*start_func)(void), void *stack,
   return nacl_irt_thread_create_v0_2(start_func, stack, thread_ptr, &child_tid);
 }
 
+#if defined(__mips__)
+
+const int32_t g_dummy_stack[16]  = {0};
+
+#endif
+
 static void nacl_irt_thread_exit(int32_t *stack_flag) {
   /*
    * We fill zero to stack_flag by ourselves instead of relying
@@ -88,6 +94,28 @@ static void nacl_irt_thread_exit(int32_t *stack_flag) {
                        "bkpt #0\n"
                        :: [stack_flag]"r"(stack_flag), [sysno]"i"(__NR_exit)
                        : "r7");
+#elif defined(__mips__)
+  __asm__ __volatile__(".set push\n"
+                       ".set noreorder\n"
+  /*
+   * We cannot set $sp to 0 on MIPS Linux because newer versions of
+   * kernel require valid stack on entry so it can read all 8 arguments
+   * regardles of syscall being issued. See mips/kernel/scall32-o32.S
+   * So we set $sp to point to dummy_stack which resides in .rodata section
+   * This should allow kernel to read the arguments and in the same time prevent
+   * it from setting up signal handling frame in case of signal
+   */
+                       "move $29, %[dummy_stack]\n"
+                       "sw  $0, 0(%[stack_flag])\n"
+                       "li  $2, %[sysno]\n"
+                       "syscall\n"
+                       "break\n"
+                       ".set pop\n"
+                       :
+                       : [stack_flag]"r"(stack_flag),
+                         [sysno]"i"(__NR_exit),
+                         [dummy_stack]"r"(&g_dummy_stack[8])
+                       : "$2", "$29", MIPS_SYSCALL_CLOBBERS);
 #else
 # error Unsupported architecture
 #endif

@@ -122,7 +122,8 @@ def TranslatorArchToBiasArch(arch):
              'x86-64': 'x86_64',
              'arm': 'arm',
              'arm-nonsfi': 'arm',
-             'mips32': 'mipsel'}
+             'mips32': 'mipsel',
+             'mips32-nonsfi': 'mipsel'}
   return archmap[arch]
 
 def TargetLibCflags(bias_arch):
@@ -720,6 +721,11 @@ def TranslatorLibs(arch, is_canonical, no_nacl_gcc):
     arch_cmds.extend(
         [BuildTargetTranslatorCmd('entry_linux.c', 'entry_linux.o', arch),
          BuildTargetTranslatorCmd('entry_linux_arm.S', 'entry_linux_asm.o',
+                                  arch)])
+  elif arch == 'mips32-nonsfi':
+    arch_cmds.extend(
+        [BuildTargetTranslatorCmd('entry_linux.c', 'entry_linux.o', arch),
+         BuildTargetTranslatorCmd('entry_linux_mips.S', 'entry_linux_asm.o',
                                   arch)])
 
   if not IsNonSFIArch(arch):

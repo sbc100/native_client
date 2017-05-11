@@ -24,8 +24,14 @@ extern "C" {
 
 #define RLIMIT_DATA 2
 #define RLIMIT_CORE 4
+
+#if defined(__mips__)
+#define RLIMIT_NOFILE 5
+#define RLIMIT_AS 6
+#else
 #define RLIMIT_NOFILE 7
 #define RLIMIT_AS 9
+#endif
 
 typedef uint32_t rlim_t;
 
