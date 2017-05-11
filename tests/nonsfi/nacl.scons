@@ -150,6 +150,15 @@ node = env.CommandSelLdrTestNacl('rlimit_test.out', nexe)
 
 env.AddNodeToTestSuite(node, ['small_tests'], 'run_rlimit_test')
 
+nexe = env.ComponentProgram('loader_tls',
+                            'loader_tls.c',
+                            EXTRA_LIBS=['irt_nonsfi','${NONIRT_LIBS}'])
+
+node = env.CommandSelLdrTestNacl('loader_tls.out', nexe)
+
+env.AddNodeToTestSuite(node, ['small_tests'], 'run_nonsfi_loader_tls_test')
+
+
 # We must actually translate from a pexe to a nexe for this next test.
 if env.Bit('pnacl_generate_pexe') and 'TRUSTED_ENV' in env:
   loader_env = env.Clone();
